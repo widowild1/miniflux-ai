@@ -27,6 +27,28 @@ logger = get_logger(__name__)
 _ENTRY_CACHE_LOCK = threading.Lock()
 _ENTRY_CACHE = TTLCache[int, bool](maxsize=1000, ttl=300)
 
+def _translate_title(title: str) -> str:
+    """
+    Traduit le titre en français si nécessaire, sinon le renvoie tel quel.
+    """
+    if not title or not title.strip():
+        return title
+
+    try:
+        prompt = (
+            "Tu es un traducteur de presse professionnel. "
+            "Si le titre suivant est déjà en français, recopie-le exactement tel quel. "
+            "S'il est dans une autre langue (par exemple en anglais), traduis-le fidèlement en français journalistic. "
+            "RÈGLE ABSOLUE : Réponds UNIQUEMENT avec le titre traduit ou recopié, "
+            "sans guillemets, sans crochets, sans astérisques, sans préambule ni commentaire.\n\n"
+            f"Titre : {title}"
+        )
+        response = chat_completion([("user", prompt)])
+        cleaned = response.strip().strip('"\'`*').strip()
+        return cleaned if cleaned else title
+    except Exception as e:
+        logger.warning(f"Impossible de traduire le titre '{title}': {e}")
+        return title
 
 def process_entry(entry: dict[str, Any]) -> dict[str, AgentResult]:
     """
@@ -75,12 +97,21 @@ def process_entry(entry: dict[str, Any]) -> dict[str, AgentResult]:
                 all_agent_contents, original_content
             )
 
-            get_miniflux_client().update_entry(entry["id"], content=ordered_content)
+            # Traduction du titre si l'article est dans une autre langue
+            new_title = _translate_title(original_entry.get("title", ""))
+            update_kwargs = {"content": ordered_content}
+            if new_title and new_title != original_entry.get("title"):
+                update_kwargs["title"] = new_title
+                entry["title"] = new_title
+
+            get_miniflux_client().update_entry(entry["id"], **update_kwargs)
+            
+            title_msg = f" (nouveau titre: '{new_title}')" if "title" in update_kwargs else ""
             logger.info_entry(
                 entry,
                 message=(
                     f"Updated successfully with new agent contents: "
-                    f"{list(new_agent_contents.keys())}"
+                    f"{list(new_agent_contents.keys())}{title_msg}"
                 ),
             )
         else:
