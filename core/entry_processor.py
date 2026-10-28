@@ -36,11 +36,11 @@ def _translate_title(title: str) -> str:
 
     try:
         prompt = (
-            "Tu es un traducteur de presse professionnel. "
-            "Si le titre suivant est déjà en français, recopie-le exactement tel quel. "
-            "S'il est dans une autre langue (par exemple en anglais), traduis-le fidèlement en français journalistic. "
-            "RÈGLE ABSOLUE : Réponds UNIQUEMENT avec le titre traduit ou recopié, "
-            "sans guillemets, sans crochets, sans astérisques, sans préambule ni commentaire.\n\n"
+            "Tu es un traducteur de presse professionnel.\n"
+            "- Si le titre suivant est DÉJÀ en français : recopie-le STRICTEMENT à l'identique.\n"
+            "- S'il est dans N'IMPORTE QUELLE AUTRE LANGUE (anglais, etc.) : traduis-le fidèlement en français journalistique naturel.\n\n"
+            "RÈGLE ABSOLUE : Réponds UNIQUEMENT avec le titre (traduit ou recopié), "
+            "sans guillemets, sans préambule ni commentaire.\n\n"
             f"Titre : {title}"
         )
         response = chat_completion([("user", prompt)])
